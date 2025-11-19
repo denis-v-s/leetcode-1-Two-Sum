@@ -1,27 +1,78 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
 <head>
-  <meta charset="UTF-8" />
-  <title>Two Sum Animation - GitHub Pages Compatible</title>
-  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/framer-motion/dist/framer-motion.umd.js"></script>
+  <meta charset="utf-8" />
+  <title>Two Sum Animation — GitHub Pages</title>
+
+  <!-- React UMD (production is recommended for GH Pages; using dev here for easier debugging) -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- Tailwind CDN for quick styling (optional) -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>body { background:#f5f5f5; }</style>
+
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { background: #f3f4f6; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+    .cell { min-width:56px; min-height:56px; display:flex; align-items:center; justify-content:center; border-radius:8px; border:1px solid #e5e7eb; background: #ffffff; box-shadow:0 1px 0 rgba(0,0,0,0.02); }
+    .cell.current { transform: scale(1.08); background: #e0f2fe; border-color:#7dd3fc; }
+    .cell.match { background:#dcfce7; border-color:#86efac; }
+    .map-item { padding:8px 10px; border-radius:6px; border:1px solid #e5e7eb; background:#fff; display:inline-block; margin:4px; }
+    .controls button { min-width:96px; }
+    .muted { color:#6b7280; }
+    .panel { background:#fff; border:1px solid #e6e6e6; border-radius:8px; padding:12px; }
+  </style>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root" class="p-6 max-w-4xl mx-auto"></div>
 
   <script>
-    const { useState, useRef } = React;
-    const { motion } = window['framer-motion'];
+  (function(React, ReactDOM){
+    const { useState, useRef, useEffect } = React;
+
+    function computeSteps(arr, tgt) {
+      // Each step: { i, num, compl, map (shallow copy), action: 'check'|'insert'|'found'|'done', desc}
+      const history = [];
+      const m = {};
+      history.push({ i: -1, num: null, compl: null, map: { ...m }, action: 'start', desc: 'Start' });
+
+      for (let i = 0; i < arr.length; i++) {
+        const num = arr[i];
+        const compl = tgt - num;
+
+        // Check step
+        const found = (compl in m);
+        history.push({
+          i, num, compl, map: { ...m }, action: 'check', found, desc: found ? `Found ${compl} in map — indices [${m[compl]}, ${i}]` : `Check if ${compl} exists`
+        });
+
+        if (found) {
+          history.push({
+            i, num, compl, map: { ...m }, action: 'found', desc: `Return indices [${m[compl]}, ${i}]`
+          });
+          return history;
+        }
+
+        // Insert step
+        m[num] = i;
+        history.push({
+          i, num, compl, map: { ...m }, action: 'insert', desc: `Insert ${num} → ${i} into map`
+        });
+      }
+
+      history.push({ i: arr.length, num: null, compl: null, map: { ...m }, action: 'done', desc: 'No solution found.' });
+      return history;
+    }
 
     function App() {
+      // inputs
       const [numsInput, setNumsInput] = useState("2,7,11,15");
       const [targetInput, setTargetInput] = useState("9");
+
       const [nums, setNums] = useState([2,7,11,15]);
       const [target, setTarget] = useState(9);
 
+      // animation state
       const [steps, setSteps] = useState([]);
       const [stepIndex, setStepIndex] = useState(0);
       const [isPlaying, setIsPlaying] = useState(false);
@@ -35,116 +86,167 @@
         "Large Case": { nums: "10,15,3,7,8,2,11,14", target: "17" }
       };
 
-      function computeSteps(arr, tgt) {
-        const history = [];
-        const m = {};
-
-        history.push({i:-1, num:null, compl:null, map:{...m}, desc:"Start"});
-
-        for (let i=0; i<arr.length; i++){
-          const num = arr[i];
-          const compl = tgt - num;
-
-          history.push({i, num, compl, map:{...m}, desc:(compl in m) ? `Found complement ${compl}` : `Check ${compl}`});
-          if (compl in m) return history;
-
-          m[num] = i;
-          history.push({i, num, compl, map:{...m}, desc:`Inserted ${num}:${i}`});
-        }
-
-        history.push({i:arr.length, map:{...m}, desc:"No solution"});
-        return history;
-      }
-
+      // load inputs into model and compute steps
       function load() {
-        const arr = numsInput.split(',').map(x => parseInt(x.trim())).filter(x=>!isNaN(x));
-        const tgt = parseInt(targetInput);
+        const arr = numsInput.split(',').map(x => parseInt(x.trim(),10)).filter(x => !Number.isNaN(x));
+        const tgt = parseInt(targetInput,10);
         setNums(arr);
         setTarget(tgt);
         const s = computeSteps(arr, tgt);
         setSteps(s);
         setStepIndex(0);
         setIsPlaying(false);
-        clearInterval(intervalRef.current);
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
       }
 
-      function play(){
-        if(isPlaying || steps.length===0) return;
+      // play/pause/step
+      function play() {
+        if (isPlaying || steps.length === 0) return;
         setIsPlaying(true);
-        intervalRef.current = setInterval(()=>{
+        intervalRef.current = setInterval(() => {
           setStepIndex(prev => {
-            if(prev+1 >= steps.length){ clearInterval(intervalRef.current); setIsPlaying(false); return prev; }
-            return prev+1;
+            if (prev + 1 >= steps.length - 1) {
+              clearInterval(intervalRef.current);
+              intervalRef.current = null;
+              setIsPlaying(false);
+              return Math.min(prev + 1, Math.max(steps.length - 1, 0));
+            }
+            return prev + 1;
           });
-        },900);
+        }, 850);
+      }
+      function pause() {
+        setIsPlaying(false);
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+      }
+      function stepForward() {
+        if (steps.length === 0) return;
+        setStepIndex(i => Math.min(i + 1, steps.length - 1));
+      }
+      function stepBack() {
+        if (steps.length === 0) return;
+        setStepIndex(i => Math.max(i - 1, 0));
       }
 
-      function pause(){ setIsPlaying(false); clearInterval(intervalRef.current); }
-      function stepForward(){ setStepIndex(i => Math.min(i+1, steps.length-1)); }
-      function stepBack(){ setStepIndex(i => Math.max(i-1, 0)); }
+      // cleanup on unmount
+      useEffect(() => {
+        return () => {
+          if (intervalRef.current) clearInterval(intervalRef.current);
+        };
+      }, []);
 
-      const current = steps[stepIndex] || {};
+      // current step
+      const current = steps[stepIndex] || { map: {}, desc: "(no steps yet — press Load)" };
 
-      return React.createElement("div", {className:"p-6 max-w-4xl mx-auto space-y-4"},
-        React.createElement("h1", {className:"text-2xl font-bold"}, "Two Sum – GitHub Pages Version"),
+      // convenience: determine index to highlight and whether a found pair exists
+      const highlightIndex = (current && typeof current.i === 'number' && current.i >= 0) ? current.i : -1;
+      const foundPair = (current && current.action === 'found');
 
-        React.createElement("div", {className:"grid grid-cols-1 md:grid-cols-4 gap-4"},
+      return React.createElement("div", { className: "space-y-6" },
+        // Header
+        React.createElement("div", { className: "flex items-center justify-between" },
+          React.createElement("h1", { className: "text-2xl font-semibold" }, "Two Sum — Interactive (GitHub Pages)"),
+          React.createElement("div", { className: "text-sm muted" }, "No build step required")
+        ),
+
+        // Inputs + presets
+        React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-4 gap-3" },
           React.createElement("input", {
-            className:"border p-2 rounded",
-            value:numsInput,
-            onChange:e=>setNumsInput(e.target.value)
+            className: "p-2 border rounded",
+            value: numsInput,
+            onChange: function(e){ setNumsInput(e.target.value); },
+            placeholder: "Numbers, comma separated"
           }),
           React.createElement("input", {
-            className:"border p-2 rounded",
-            value:targetInput,
-            onChange:e=>setTargetInput(e.target.value)
+            className: "p-2 border rounded",
+            value: targetInput,
+            onChange: function(e){ setTargetInput(e.target.value); },
+            placeholder: "Target"
           }),
           React.createElement("select", {
-            className:"border p-2 rounded",
-            onChange:e=>{
-              const t = testCases[e.target.value];
-              if(t){ setNumsInput(t.nums); setTargetInput(t.target);} }
-          },[
-            React.createElement("option", {key:"x"}, "Select Test Case"),
-            ...Object.keys(testCases).map(k=>React.createElement("option", {key:k}, k))
-          ]),
-          React.createElement("button", {className:"bg-blue-600 text-white p-2 rounded", onClick:load}, "Load")
-        ),
-
-        React.createElement("div", {className:"flex space-x-3"},[
-          React.createElement("button", {className:"p-2 border rounded", onClick:stepBack}, "⟵ Back"),
-          isPlaying ?
-            React.createElement("button", {className:"p-2 border rounded", onClick:pause}, "Pause") :
-            React.createElement("button", {className:"p-2 border rounded", onClick:play}, "Play"),
-          React.createElement("button", {className:"p-2 border rounded", onClick:stepForward}, "Forward ⟶")
-        ]),
-
-        React.createElement("div", {className:"p-4 border rounded bg-white"},
-          React.createElement("h2", {className:"font-semibold mb-2"}, "Array"),
-          React.createElement("div", {className:"flex space-x-2"},
-            nums.map((n,idx)=>React.createElement(motion.div, {
-              key:idx,
-              animate:{ scale: current.i===idx?1.2:1 }
+            className: "p-2 border rounded",
+            onChange: function(e) {
+              const k = e.target.value;
+              if (testCases[k]) {
+                setNumsInput(testCases[k].nums);
+                setTargetInput(testCases[k].target);
+              }
             },
-              React.createElement("div", {className:"p-3 bg-gray-100 border rounded"}, `${n} (${idx})`)
-            ))
+            defaultValue: ""
+          },
+            React.createElement("option", { value: "" }, "Select test case"),
+            Object.keys(testCases).map(function(k){
+              return React.createElement("option", { key: k, value: k }, k);
+            })
+          ),
+          React.createElement("button", { className: "bg-blue-600 text-white rounded px-3 py-2", onClick: load }, "Load")
+        ),
+
+        // Controls
+        React.createElement("div", { className: "flex items-center space-x-3 controls" },
+          React.createElement("button", { className: "px-3 py-2 border rounded", onClick: stepBack }, "⟵ Back"),
+          isPlaying ?
+            React.createElement("button", { className: "px-3 py-2 border rounded", onClick: pause }, "Pause") :
+            React.createElement("button", { className: "px-3 py-2 border rounded", onClick: play }, "Play"),
+          React.createElement("button", { className: "px-3 py-2 border rounded", onClick: stepForward }, "Forward ⟶"),
+          React.createElement("div", { className: "ml-4 text-sm muted" }, "Step: ", (steps.length ? (stepIndex + 1) : 0), " / ", (steps.length || 0))
+        ),
+
+        // Panels: Array + Map
+        React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
+
+          // Array panel
+          React.createElement("div", { className: "panel" },
+            React.createElement("div", { className: "flex items-center justify-between mb-3" },
+              React.createElement("h2", { className: "font-medium" }, "Array"),
+              React.createElement("div", { className: "text-sm muted" }, "i = ", highlightIndex >= 0 ? highlightIndex : "—")
+            ),
+            React.createElement("div", { className: "flex flex-wrap gap-3" },
+              nums.map(function(n, idx){
+                const classes = "cell" + (idx === highlightIndex ? " current" : "") + (foundPair && (idx === highlightIndex || (current && current.found && current.map && current.map[n] === idx)) ? " match" : "");
+                // note: we show value and index
+                return React.createElement("div", { key: idx, className: classes },
+                  React.createElement("div", { style: { textAlign: "center" } },
+                    React.createElement("div", null, n),
+                    React.createElement("div", { className: "text-xs muted" }, idx)
+                  )
+                );
+              })
+            ),
+            React.createElement("div", { className: "mt-3 text-sm muted" }, React.createElement("strong", null, "Target: "), target)
+          ),
+
+          // Map panel
+          React.createElement("div", { className: "panel" },
+            React.createElement("div", { className: "flex items-center justify-between mb-3" },
+              React.createElement("h2", { className: "font-medium" }, "Hash Map (value → index)"),
+              React.createElement("div", { className: "text-sm muted" }, "Action: ", current.action || "—")
+            ),
+            React.createElement("div", { className: "min-h-[60px] flex flex-wrap items-start" },
+              (current.map && Object.keys(current.map).length > 0) ? Object.entries(current.map).map(function(p){
+                return React.createElement("div", { key: p[0], className: "map-item" }, p[0] + " → " + p[1]);
+              }) : React.createElement("div", { className: "muted" }, "(empty)")
+            ),
+            React.createElement("div", { className: "mt-3 text-sm" },
+              React.createElement("strong", null, "Current: "), React.createElement("span", null, current.desc || "(press Load)")
+            )
           )
         ),
 
-        React.createElement("div", {className:"p-4 border rounded bg-white"},
-          React.createElement("h2", {className:"font-semibold mb-2"}, "Hash Map"),
-          React.createElement("div", {},
-            current.map ? Object.entries(current.map).map(([k,v])=>
-              React.createElement("div", {key:k, className:"p-2 bg-gray-100 border rounded mb-1"}, `${k} → ${v}`)
-            ) : "(empty)"
-          )
-        ),
-
-        React.createElement("div", {className:"p-3 border rounded bg-white"}, current.desc || "Press Load")
+        // Footer / Debug
+        React.createElement("div", { className: "text-xs muted" }, "This single HTML file works directly on GitHub Pages — drop it into the repo root or the gh-pages branch and enable Pages.")
       );
     }
 
+    // render
     ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+  })(window.React, window.ReactDOM);
   </script>
 </body>
 </html>
