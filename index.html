@@ -1,183 +1,150 @@
-import React, { useState, useRef } from "react";
-import { motion } from "framer-motion";
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Two Sum Animation - GitHub Pages Compatible</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/framer-motion/dist/framer-motion.umd.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>body { background:#f5f5f5; }</style>
+</head>
+<body>
+  <div id="root"></div>
 
-// Two Sum animation with custom input, stepping, pausing, backward stepping, and preset test cases
-export default function TwoSumAnimation() {
-  const [numsInput, setNumsInput] = useState("2,7,11,15");
-  const [targetInput, setTargetInput] = useState("9");
-  const [nums, setNums] = useState([2, 7, 11, 15]);
-  const [target, setTarget] = useState(9);
+  <script>
+    const { useState, useRef } = React;
+    const { motion } = window['framer-motion'];
 
-  const [steps, setSteps] = useState([]);
-  const [stepIndex, setStepIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const intervalRef = useRef(null);
+    function App() {
+      const [numsInput, setNumsInput] = useState("2,7,11,15");
+      const [targetInput, setTargetInput] = useState("9");
+      const [nums, setNums] = useState([2,7,11,15]);
+      const [target, setTarget] = useState(9);
 
-  const testCases = {
-    "Simple Match Early": { nums: "2,7,11,15", target: "9" },
-    "Match Late": { nums: "3,2,4,8,10", target: "14" },
-    "Negative Numbers": { nums: "-3,4,3,90", target: "0" },
-    "Duplicates": { nums: "1,5,1,5", target: "6" },
-    "Large Case": { nums: "10,15,3,7,8,2,11,14", target: "17" }
-  };
+      const [steps, setSteps] = useState([]);
+      const [stepIndex, setStepIndex] = useState(0);
+      const [isPlaying, setIsPlaying] = useState(false);
+      const intervalRef = useRef(null);
 
-  function computeSteps(arr, tgt) {
-    const history = [];
-    const m = {};
+      const testCases = {
+        "Simple Match Early": { nums: "2,7,11,15", target: "9" },
+        "Match Late": { nums: "3,2,4,8,10", target: "14" },
+        "Negative Numbers": { nums: "-3,4,3,90", target: "0" },
+        "Duplicates": { nums: "1,5,1,5", target: "6" },
+        "Large Case": { nums: "10,15,3,7,8,2,11,14", target: "17" }
+      };
 
-    history.push({ i: -1, num: null, compl: null, map: { ...m }, found: false, desc: "Start" });
+      function computeSteps(arr, tgt) {
+        const history = [];
+        const m = {};
 
-    for (let i = 0; i < arr.length; i++) {
-      const num = arr[i];
-      const compl = tgt - num;
+        history.push({i:-1, num:null, compl:null, map:{...m}, desc:"Start"});
 
-      history.push({ i, num, compl, map: { ...m }, found: compl in m, desc: compl in m ? `Found complement ${compl} in map => indices [${m[compl]}, ${i}]` : `Checking if complement ${compl} is in map` });
+        for (let i=0; i<arr.length; i++){
+          const num = arr[i];
+          const compl = tgt - num;
 
-      if (compl in m) {
+          history.push({i, num, compl, map:{...m}, desc:(compl in m) ? `Found complement ${compl}` : `Check ${compl}`});
+          if (compl in m) return history;
+
+          m[num] = i;
+          history.push({i, num, compl, map:{...m}, desc:`Inserted ${num}:${i}`});
+        }
+
+        history.push({i:arr.length, map:{...m}, desc:"No solution"});
         return history;
       }
 
-      m[num] = i;
+      function load() {
+        const arr = numsInput.split(',').map(x => parseInt(x.trim())).filter(x=>!isNaN(x));
+        const tgt = parseInt(targetInput);
+        setNums(arr);
+        setTarget(tgt);
+        const s = computeSteps(arr, tgt);
+        setSteps(s);
+        setStepIndex(0);
+        setIsPlaying(false);
+        clearInterval(intervalRef.current);
+      }
 
-      history.push({ i, num, compl, map: { ...m }, found: false, desc: `Inserted ${num}:${i} into map` });
+      function play(){
+        if(isPlaying || steps.length===0) return;
+        setIsPlaying(true);
+        intervalRef.current = setInterval(()=>{
+          setStepIndex(prev => {
+            if(prev+1 >= steps.length){ clearInterval(intervalRef.current); setIsPlaying(false); return prev; }
+            return prev+1;
+          });
+        },900);
+      }
+
+      function pause(){ setIsPlaying(false); clearInterval(intervalRef.current); }
+      function stepForward(){ setStepIndex(i => Math.min(i+1, steps.length-1)); }
+      function stepBack(){ setStepIndex(i => Math.max(i-1, 0)); }
+
+      const current = steps[stepIndex] || {};
+
+      return React.createElement("div", {className:"p-6 max-w-4xl mx-auto space-y-4"},
+        React.createElement("h1", {className:"text-2xl font-bold"}, "Two Sum – GitHub Pages Version"),
+
+        React.createElement("div", {className:"grid grid-cols-1 md:grid-cols-4 gap-4"},
+          React.createElement("input", {
+            className:"border p-2 rounded",
+            value:numsInput,
+            onChange:e=>setNumsInput(e.target.value)
+          }),
+          React.createElement("input", {
+            className:"border p-2 rounded",
+            value:targetInput,
+            onChange:e=>setTargetInput(e.target.value)
+          }),
+          React.createElement("select", {
+            className:"border p-2 rounded",
+            onChange:e=>{
+              const t = testCases[e.target.value];
+              if(t){ setNumsInput(t.nums); setTargetInput(t.target);} }
+          },[
+            React.createElement("option", {key:"x"}, "Select Test Case"),
+            ...Object.keys(testCases).map(k=>React.createElement("option", {key:k}, k))
+          ]),
+          React.createElement("button", {className:"bg-blue-600 text-white p-2 rounded", onClick:load}, "Load")
+        ),
+
+        React.createElement("div", {className:"flex space-x-3"},[
+          React.createElement("button", {className:"p-2 border rounded", onClick:stepBack}, "⟵ Back"),
+          isPlaying ?
+            React.createElement("button", {className:"p-2 border rounded", onClick:pause}, "Pause") :
+            React.createElement("button", {className:"p-2 border rounded", onClick:play}, "Play"),
+          React.createElement("button", {className:"p-2 border rounded", onClick:stepForward}, "Forward ⟶")
+        ]),
+
+        React.createElement("div", {className:"p-4 border rounded bg-white"},
+          React.createElement("h2", {className:"font-semibold mb-2"}, "Array"),
+          React.createElement("div", {className:"flex space-x-2"},
+            nums.map((n,idx)=>React.createElement(motion.div, {
+              key:idx,
+              animate:{ scale: current.i===idx?1.2:1 }
+            },
+              React.createElement("div", {className:"p-3 bg-gray-100 border rounded"}, `${n} (${idx})`)
+            ))
+          )
+        ),
+
+        React.createElement("div", {className:"p-4 border rounded bg-white"},
+          React.createElement("h2", {className:"font-semibold mb-2"}, "Hash Map"),
+          React.createElement("div", {},
+            current.map ? Object.entries(current.map).map(([k,v])=>
+              React.createElement("div", {key:k, className:"p-2 bg-gray-100 border rounded mb-1"}, `${k} → ${v}`)
+            ) : "(empty)"
+          )
+        ),
+
+        React.createElement("div", {className:"p-3 border rounded bg-white"}, current.desc || "Press Load")
+      );
     }
 
-    history.push({ i: arr.length, num: null, compl: null, map: { ...m }, found: false, desc: "No solution found." });
-    return history;
-  }
-
-  function load() {
-    const arr = numsInput.split(',').map(x => parseInt(x.trim(), 10)).filter(x => !Number.isNaN(x));
-    const tgt = parseInt(targetInput, 10);
-    setNums(arr);
-    setTarget(tgt);
-    const s = computeSteps(arr, tgt);
-    setSteps(s);
-    setStepIndex(0);
-    setIsPlaying(false);
-    clearInterval(intervalRef.current);
-  }
-
-  function play() {
-    if (isPlaying || steps.length === 0) return;
-    setIsPlaying(true);
-    intervalRef.current = setInterval(() => {
-      setStepIndex(prev => {
-        if (prev + 1 >= steps.length - 1) {
-          clearInterval(intervalRef.current);
-          setIsPlaying(false);
-          return Math.min(prev + 1, steps.length - 1);
-        }
-        return prev + 1;
-      });
-    }, 900);
-  }
-
-  function pause() {
-    setIsPlaying(false);
-    clearInterval(intervalRef.current);
-  }
-
-  function stepForward() {
-    if (steps.length === 0) return;
-    setStepIndex(prev => Math.min(prev + 1, steps.length - 1));
-  }
-
-  function stepBack() {
-    if (steps.length === 0) return;
-    setStepIndex(prev => Math.max(prev - 1, 0));
-  }
-
-  const current = steps[stepIndex] || {};
-
-  return (
-    <div className="p-6 max-w-4xl mx-auto space-y-4">
-      <h1 className="text-2xl font-bold">Two Sum – Interactive Animation</h1>
-
-      {/* Inputs + presets */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <input
-          className="border p-2 rounded"
-          value={numsInput}
-          onChange={e => setNumsInput(e.target.value)}
-          placeholder="Numbers (comma separated)"
-        />
-
-        <input
-          className="border p-2 rounded"
-          value={targetInput}
-          onChange={e => setTargetInput(e.target.value)}
-          placeholder="Target"
-        />
-
-        <select
-          className="border p-2 rounded"
-          onChange={e => {
-            const t = testCases[e.target.value];
-            if (t) {
-              setNumsInput(t.nums);
-              setTargetInput(t.target);
-            }
-          }}
-        >
-          <option value="">Select Test Case</option>
-          {Object.keys(testCases).map(k => (
-            <option key={k} value={k}>{k}</option>
-          ))}
-        </select>
-
-        <button className="bg-blue-600 text-white p-2 rounded" onClick={load}>Load</button>
-      </div>
-
-      {/* Controls */}
-      <div className="flex items-center space-x-3">
-        <button className="p-2 border rounded" onClick={stepBack}>⟵ Step Back</button>
-        {isPlaying ? (
-          <button className="p-2 border rounded" onClick={pause}>Pause</button>
-        ) : (
-          <button className="p-2 border rounded" onClick={play}>Play</button>
-        )}
-        <button className="p-2 border rounded" onClick={stepForward}>Step Forward ⟶</button>
-
-        <div className="ml-4 text-sm text-gray-600">Step {stepIndex + 1} / {Math.max(steps.length, 1)}</div>
-      </div>
-
-      {/* Panels */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="p-4 border rounded bg-white">
-          <h2 className="font-semibold mb-2">Array</h2>
-          <div className="flex space-x-2 flex-wrap">
-            {nums.map((n, idx) => (
-              <motion.div
-                key={idx}
-                animate={{ scale: current.i === idx ? 1.15 : 1 }}
-                className={`p-3 border rounded ${current.i === idx ? "bg-blue-50" : "bg-gray-50"}`}
-              >
-                <div className="text-center">{n}</div>
-                <div className="text-xs text-gray-500">{idx}</div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-
-        <div className="p-4 border rounded bg-white">
-          <h2 className="font-semibold mb-2">Hash Map (value → index)</h2>
-          <div className="space-y-1">
-            {current.map && Object.keys(current.map).length > 0 ? (
-              Object.entries(current.map).map(([k, v]) => (
-                <div key={k} className="p-2 bg-gray-50 rounded border">{k} → {v}</div>
-              ))
-            ) : (
-              <div className="text-sm text-gray-500">(empty)</div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Description */}
-      <div className="p-3 border rounded bg-white text-sm">
-        <strong>State:</strong> {current.desc || "(no steps yet — press Load)"}
-      </div>
-    </div>
-  );
-}
+    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+  </script>
+</body>
+</html>
